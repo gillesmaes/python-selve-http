@@ -21,6 +21,14 @@ def b64bytes_to_bitlist(b):
 def true_in_list(l):
     return [i for i,v in enumerate(l) if v]
 
+def valueToPercentage(value):
+    return (value / 65535)*100
+
+def percentageToValue(perc):
+    return (65535/100)*perc
+
+def intToBoolarray(value):
+    return [bool(bit) for bit in '{0:10b}'.format(value)]
 
 if __name__ == '__main__':
     for i in range (0,64):

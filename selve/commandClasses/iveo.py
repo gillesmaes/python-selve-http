@@ -4,71 +4,45 @@ from selve.protocol import MethodCall
 from selve.protocol import ParameterType
 from selve.protocol import DeviceType
 from selve.protocol import CommandType
+from selve.commands import Commands, IveoCommand
+from selve.communication import Command, CommandMask, CommandSingle
 from selve.utils import singlemask
 from selve.utils import true_in_list
 from selve.utils import b64bytes_to_bitlist
 import logging
 
 
-
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
 
-class IveoCommand(Enum):
-    FACTORY = "commandFactory"
-    SETCONFIG = "setConfig"
-    GETCONFIG = "getConfig"
-    GETIDS = "getIDs"
-    SETLABEL = "setLabel"
-    TEACH = "commandTeach"
-    LEARN = "commandLearn"
-    MANUAL = "commandManual"
-    AUTOMATIC = "commandAutomatic"
-    RESULT = "commandResult"
     
-    
-class CommandIveo(MethodCall):
-
-    def __init__(self, method_name, parameters = []):
-         super().__init__("selve.GW.iveo." + method_name.value, parameters)
-
-class CommandSingleIveo(CommandIveo):
-
-    def __init__(self, method_name, iveoID):
-        super().__init__(method_name, [(ParameterType.INT, iveoID)])
-
-class CommandMaskIveo(CommandIveo):
-
-    def __init__(self, method_name, mask, command):
-        super().__init__(method_name, [(ParameterType.BASE64, mask), (ParameterType.INT, command.value)])
-
-class IveoCommandFactory(CommandSingleIveo):
+class IveoCommandFactory(CommandSingle):
 
     def __init__(self, iveoID):
         super().__init__(IveoCommand.FACTORY, iveoID)
 
-class IveoCommandTeach(CommandSingleIveo):
+class IveoCommandTeach(CommandSingle):
     def __init__(self, iveoID):
         super().__init__(IveoCommand.TEACH, iveoID)
 
     def process_response(self, methodResponse):
         self.executed = bool(methodResponse.parameters[0][1])   
 
-class IveoCommandLearn(CommandSingleIveo):
+class IveoCommandLearn(CommandSingle):
     def __init__(self, iveoID):
         super().__init__(IveoCommand.LEARN, iveoID)
     
     def process_response(self, methodResponse):
         self.executed = bool(methodResponse.parameters[0][1]) 
          
-class IveoCommandManual(CommandMaskIveo):
+class IveoCommandManual(CommandMask):
     def  __init__(self, mask, command):
         super().__init__(IveoCommand.MANUAL, mask, command)
     
     def process_response(self, methodResponse):
         self.executed = bool(methodResponse.parameters[0][1]) 
 
-class IveoCommandAutomatic(CommandMaskIveo):
+class IveoCommandAutomatic(CommandMask):
     def  __init__(self, mask, command):
         super().__init__(IveoCommand.AUTOMATIC, mask, command)
     
@@ -79,21 +53,21 @@ class IveoCommandResult(MethodCall):
     def __init__(self, command, mask, state):
         super().__init__(IveoCommand.RESULT, [(ParameterType.INT, command), (ParameterType.BASE64, mask), (ParameterType.INT, state)])
 
-class IveoComandSetLabel(CommandIveo):
+class IveoCommandSetLabel(Command):
     def __init__(self, iveoId, label):
         super().__init__(IveoCommand.SETLABEL, [(ParameterType.INT, iveoId), (ParameterType.STRING, label)])
 
     def process_response(self, methodResponse):
         self.executed = bool(methodResponse.parameters[0][1])
 
-class IveoComandSetConfig(CommandIveo):
+class IveoCommandSetConfig(Command):
     def __init__(self, iveoId, activity, device_type):
         super().__init__(IveoCommand.SETCONFIG, [(ParameterType.INT, iveoId), (ParameterType.INT, activity), (ParameterType.INT, device_type)])
     
     def process_response(self, methodResponse):
         self.executed = bool(methodResponse.parameters[0][1])
 
-class IveoComandGetConfig(CommandSingleIveo):
+class IveoCommandGetConfig(CommandSingle):
     def __init__(self, iveoId):
         super().__init__(IveoCommand.GETCONFIG, iveoId)
     
@@ -102,7 +76,7 @@ class IveoComandGetConfig(CommandSingleIveo):
         self.activity = methodResponse.parameters[2][1]
         self.deviceType = DeviceType(int(methodResponse.parameters[3][1]))
 
-class IveoCommandGetIds(CommandIveo):
+class IveoCommandGetIds(Command):
     def __init__(self):
         super().__init__(IveoCommand.GETIDS)
     

@@ -1,13 +1,25 @@
 #!/usr/bin/python
 
+from selve.device import Device
 import time
 import serial
 from enum import Enum
 import logging
+import threading
+import queue
 
+from selve.commandClasses.command import *
+from selve.commandClasses.common import *
+from selve.commandClasses.device import *
+from selve.commandClasses.group import *
+from selve.commandClasses.iveo import *
+from selve.commandClasses.sender import *
+from selve.commandClasses.senSim import *
+from selve.commandClasses.sensor import *
+from selve.communication import *
 from selve.utils import * 
-from selve.iveo import *
-from selve.protocol import process_response
+from selve.protocol import *
+
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,8 +36,27 @@ class Gateway():
                                the devices on init (default: {True})
         """
         self.port = port
+        self.connected = False
+        self.inputQueue = queue.Queue()
+        self.outputQueue = queue.Queue()
+
+        _LOGGER.debug('check')
+        
+        try:
+            self.configserial()
+
+        except Exception as e:            
+            _LOGGER.error ('error open serial port: ' + str(e))
+            exit()
+
         if discover:
             self.discover()
+
+        self.readThread = threading.Thread(target=self.readFromPort)
+        self.readThread.start()
+
+        self.writeThread = threading.Thread(target=self.writePort)
+        self.writeThread.start()
     
     def configserial(self):
         """
@@ -43,7 +74,51 @@ class Gateway():
         self.ser.dsrdtr = False
         self.ser.writeTimeout = 2
 
-            
+    def handleData(data):
+        incomingEvent(str(data))
+
+    def readFromPort(self):
+        while True:
+            response_str = "" 
+            if self.ser.isOpen():
+                if int(self.ser.in_waiting) > 0:                        
+                    response = self.ser.readline().strip()
+                    response_str += response.decode()
+                    _LOGGER.info('read data: ' + response_str)
+                    if (response.decode() == ''):
+                        self.handleData(response_str)
+
+                
+    def writePort(self):
+        while True:
+            response_str = "" 
+            if self.outputQueue.not_empty:                        
+                if self.ser.isOpen():
+                    try:
+                        self.ser.flushInput()
+                        self.ser.flushOutput()
+                        
+                        self.ser.write(self.outputQueue.get())
+                        time.sleep(0.5)
+                        response_str = "" 
+                        while True:
+                            response = self.ser.readline().strip()
+                            response_str += response.decode()
+                            if (response.decode() == ''):
+                                break
+                            
+                        self.ser.close()
+                        _LOGGER.info('read data: ' + response_str)
+                        #return process_response(response_str)
+                        # handle response somehow here
+                    except Exception as e1:
+                        _LOGGER.exception ("error communicating...: " + str(e1))
+                else:
+                    _LOGGER.error ("cannot open serial port THREAD")
+        
+
+
+
     def executeCommand(self, command):
         """[summary]
         Execute the given command using the serial port.
@@ -64,17 +139,10 @@ class Gateway():
         commandstr = command.serializeToXML()
         _LOGGER.info('Gateway writting: ' + str(commandstr))
 
-        try:
-            self.configserial()
-
-        except Exception as e:            
-            _LOGGER.error ('error open serial port: ' + str(e))
-            exit()
-        
         if self.ser.isOpen():
             try:
-                self.ser.flushInput()
-                self.ser.flushOutput()
+                self.ser.reset_input_buffer()
+                self.ser.reset_output_buffer()
                 
                 self.ser.write(commandstr)
                 time.sleep(0.5)
@@ -95,27 +163,43 @@ class Gateway():
         
         return None
 
-    # def serial_data(self, data):
-    #     print (data)
-
     def discover(self):
         """[summary]
             Discover all devices registered on the usb-commeo        
         """
-        command = IveoCommandGetIds()
+        commandIveo = IveoCommandGetIds()
+        commandCommeo = CommeoDeviceGetIDs()
         num_retries = 5
         retry_n = 0
-        while not hasattr(command, "ids") and retry_n <=num_retries:
-            command.execute(self)
+        retry_m = 0
+        while not hasattr(commandIveo, "ids") and retry_n <=num_retries:
+            commandIveo.execute(self)
             retry_n += 1
             time.sleep(1)
-        
-        if not hasattr(command, "ids"):
-            _LOGGER.info("Associated Devices not found") 
-            self.devices = {}
+        while not hasattr(commandCommeo, "ids") and retry_m <=num_retries:
+            commandCommeo.execute(self)
+            retry_m += 1
+            time.sleep(1)
+
+
+        self.devices = {}
+        if not hasattr(commandIveo, "ids"):
+            _LOGGER.info("Associated Iveo Devices not found") 
+            iveoDevices = {}
         else:
-            _LOGGER.debug(f'discover ids: {command.ids}')
-            self.devices = dict([(id, IveoDevice(self, id , True) )for id in command.ids])
+            _LOGGER.debug(f'discover ids: {commandIveo.ids}')
+            iveoDevices = dict([(id, Device(self, id , True) )for id in commandIveo.ids])
+        
+        if not hasattr(commandCommeo, "ids"):
+            _LOGGER.info("Associated Commeo Devices not found") 
+            commeoDevices = {}
+        else:
+            _LOGGER.debug(f'discover ids: {commandCommeo.ids}')
+            commeoDevices = dict([(id, Device(self, id , True) )for id in commandCommeo.ids])
+        
+
+        self.devices = iveoDevices | commeoDevices
+        
         self.list_devices() 
        
 
@@ -150,10 +234,12 @@ if __name__ == '__main__':
     #print (singlemask(2).decode('utf-8'))
     _LOGGER.setLevel(logging.DEBUG)
     #manual = MethodCall("selve.GW.iveo.getIDs",[])
-    portname = '/dev/cu.usbserial-DJ00T875'
+    portname = '/dev/virtual-tty'
     gat = Gateway(portname, False)
+
+
     gat.discover()
-    devices = list(gat.devices.values())
+    #devices = list(gat.devices.values())
     #device = IveoDevice(gat, 0)
     #device.stop(False)
     #gat.list_devices()

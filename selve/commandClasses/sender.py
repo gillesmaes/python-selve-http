@@ -1,0 +1,78 @@
+from enum import Enum
+from selve.communication import Command, CommandSingle
+from selve.protocol import MethodCall, ServiceState, TeachState, senderEvents
+from selve.protocol import ParameterType
+from selve.protocol import DeviceType
+from selve.protocol import CommandType
+from selve.commands import Commands, CommeoCommandCommand, CommeoDeviceCommand, CommeoEventCommand, CommeoGroupCommand, CommeoParamCommand, CommeoSenSimCommand, CommeoSenderCommand, CommeoSensorCommand, CommeoServiceCommand
+from selve.utils import singlemask
+from selve.utils import true_in_list
+from selve.utils import b64bytes_to_bitlist
+import logging
+_LOGGER = logging.getLogger(__name__)
+
+
+class CommeoSenderTeachStart(Command):
+    def __init__(self):
+        super().__init__(CommeoSenderCommand.TEACHSTART)
+    def process_response(self, methodResponse):
+        self.executed = bool(methodResponse.parameters[0][1])
+
+class CommeoSenderTeachStop(Command):
+    def __init__(self):
+        super().__init__(CommeoSenderCommand.TEACHSTOP)
+    def process_response(self, methodResponse):
+        self.executed = bool(methodResponse.parameters[0][1])
+        
+class CommeoSenderTeachResult(Command):
+    def __init__(self):
+        super().__init__(CommeoSenderCommand.TEACHRESULT)
+    def process_response(self, methodResponse):
+        self.name = str(methodResponse.parameters[0][1])
+        self.teachState = TeachState(int(methodResponse.parameters[1][1]))
+        self.timeLeft = int(methodResponse.parameters[1][1])
+        self.senderId = int(methodResponse.parameters[2][1])
+        self.senderEvent = senderEvents(int(methodResponse.parameters[3][1]))
+
+class CommeoSenderGetIDs(Command):
+    def __init__(self):
+        super().__init__(CommeoSenderCommand.GETIDS)
+
+    def process_response(self, methodResponse):
+        self.ids = [ b for b in true_in_list(b64bytes_to_bitlist(methodResponse.parameters[0][1]))]
+        _LOGGER.debug(self.ids)
+        
+class CommeoSenderGetInfo(CommandSingle):
+    def __init__(self, deviceId):
+        super().__init__(CommeoSenderCommand.GETINFO, deviceId)
+
+    def process_response(self, methodResponse):
+        self.name = methodResponse.parameters[0][1]
+        self.rfAddress = methodResponse.parameters[2][1]
+        self.rfChannel = int(methodResponse.parameters[3][1])
+        self.rfResetCount = int(methodResponse.parameters[4][1])
+
+class CommeoSenderGetValues(CommandSingle):
+    def __init__(self, deviceId):
+        super().__init__(CommeoSenderCommand.GETVALUES, deviceId)
+    def process_response(self, methodResponse):
+        self.lastEvent = senderEvents(int(methodResponse.parameters[1][1]))
+        
+class CommeoSenderSetLabel(Command):
+    def __init__(self, deviceId, name):
+        super().__init__(CommeoSenderCommand.SETLABEL, [(ParameterType.INT, deviceId), (ParameterType.STRING, name)])
+    def process_response(self, methodResponse):
+        self.executed = bool(methodResponse.parameters[0][1])
+        
+class CommeoSenderDelete(CommandSingle):
+    def __init__(self, deviceId):
+        super().__init__(CommeoSenderCommand.DELETE, deviceId)
+    def process_response(self, methodResponse):
+        self.executed = bool(methodResponse.parameters[0][1])
+        
+class CommeoSenderWriteManual(Command):
+    def __init__(self, deviceId, rfAddress, rfChannel, rfResetCount, name):
+        super().__init__(CommeoSenderCommand.WRITEMANUAL, [(ParameterType.INT, deviceId), (ParameterType.INT, rfAddress), (ParameterType.INT, rfChannel), (ParameterType.INT, rfResetCount), (ParameterType.STRING, name)])
+    def process_response(self, methodResponse):
+        self.executed = bool(methodResponse.parameters[0][1])
+        

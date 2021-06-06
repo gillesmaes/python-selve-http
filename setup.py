@@ -14,14 +14,14 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     
-    name='python-selve',  # Required    
-    version='1.2.1',  # Required  
-    description='Python library for interfacing with selve devices using the USB-RF controller',  # Required   
+    name='python-selve-new',  # Required    
+    version='1.0.1.2',  # Required  
+    description='Python library for interfacing with selve devices using the USB-RF controller; forked from GPULIDO',  # Required   
     long_description=long_description,  # Optional    
-    url='https://github.com/gpulido/python-selve',  # Optional
-    author='Gabriel Pulido',  # Optional
+    url='https://github.com/Kannix2005/python-selve',  # Optional
+    author='Stefan Altheimer',  # Optional
    
-    author_email='gabriel.pulidodetorres@gmail.com',  # Optional
+    author_email='stefan.altheimer@gmail.com',  # Optional
 
     # Classifiers help users find your project by categorizing it.
     #
@@ -54,7 +54,7 @@ setup(
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'pySerial',
+        'pyserial',
         'pybase64',
         'untangle'
         ],  # Optional
