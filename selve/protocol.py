@@ -1,5 +1,7 @@
-
-from enum import Enum
+from build.lib.selve.protocol import ErrorResponse
+from os import name
+from build.lib.selve.utils import b64bytes_to_bitlist, intToBoolarray, true_in_list, valueToPercentage
+from enum import Enum, Flag
 from itertools import chain
 from serial.serialutil import STOPBITS_ONE
 import untangle
@@ -18,7 +20,7 @@ class DeviceType(Enum):
     DRAWN_LIGHT = 7
     HEATING = 8
     COOLING = 9
-    COOLING2 = 10
+    SWITCHDAY = 10
     GATEWAY = 11
 
 class DeviceState(Enum):
@@ -34,18 +36,18 @@ class MovementState(Enum):
     DOWN_ON = 3
 
 class CommunicationType(Enum):
-    COMMMEO = 0
+    COMMEO = 0
     IVEO = 1
     UNKNOWN = 99
 
-class CommandType(Enum):
+class CommandTypeIveo(Enum):
     STOP = 0
-    DRIVEAWAY = 1
-    DEPARTURE = 2
+    DRIVEUP = 1
+    DRIVEDOWN = 2
     POSITION_1 = 3
     POSITION_2 = 4
 
-class DeviceCommands(Enum):
+class CommandType(Enum):
     STOP = 0
     DRIVEUP = 1
     DRIVEDOWN = 2
@@ -103,6 +105,11 @@ class SensorState(Enum):
     TESTMODE = 4
     SERVICEMODE = 5
 
+class RepeaterState(Enum):
+    NONE = 0
+    SINGLEREPEAT = 1
+    MULTIREPEAT = 2
+
 class LEDMode(Enum):
     OFF = 0
     ON = 1
@@ -138,6 +145,15 @@ class LogType(Enum):
     INFO = 0
     WARNING = 1
     ERROR = 2
+
+class DeviceClass(Enum):
+    ACTOR = 0
+    GROUP = 1
+    SENDER = 2
+    SENSIM = 3
+    SENSOR = 4
+    IVEO = 5
+    UNKOWN = 99
 
 ## SensorVariables ##
 
@@ -206,6 +222,9 @@ class MethodCall:
     
     def process_response(self, methodResponse):
         _LOGGER.debug(methodResponse)
+        self.hasError = False
+        if isinstance(methodResponse, ErrorResponse):
+            self.hasError = True
 
 
 class MethodResponse:
@@ -213,6 +232,75 @@ class MethodResponse:
     def __init__(self, name, parameters):
         self.name = name
         self.parameters = parameters
+        
+class CommeoCommandResult(MethodResponse):
+    def __init__(self, name, parameters):
+        super().__init__(name, parameters)
+        self.command = self.name
+        self.commandType = DeviceCommandTypes(int(parameters[1][1]))
+        self.executed = bool(parameters[2][1])
+        self.successIds = [ b for b in true_in_list(b64bytes_to_bitlist(parameters[3][1]))]
+        self.failedIds = [ b for b in true_in_list(b64bytes_to_bitlist(parameters[4][1]))]
+
+class CommeoDeviceEventResponse(MethodResponse):
+    def __init__(self, name, parameters):
+        super().__init__(name, parameters)
+        self.actorName = str(parameters[0][1])
+        self.actorId = int(parameters[1][1])
+        self.actorState = MovementState(int(parameters[2][1]))
+        self.value = valueToPercentage(int(parameters[3][1]))
+        self.targetValue = valueToPercentage(int(parameters[4][1]))
+        bArr = intToBoolarray(int(parameters[5][1]))
+        self.unreachable = bArr[0]
+        self.overload = bArr[1]
+        self.obstructed = bArr[2]
+        self.alarm = bArr[3]
+        self.lostSensor = bArr[4]
+        self.automaticMode = bArr[5]
+        self.gatewayNotLearned = bArr[6]
+        self.windAlarm = bArr[7]
+        self.rainAlarm = bArr[8]
+        self.freezingAlarm = bArr[9]
+        self.dayMode = DayMode(int(parameters[6][1]))
+        self.deviceType = DeviceType(int(parameters[7][1]))
+
+class LogEventResponse(MethodResponse):
+    def __init__(self, name, parameters):
+        super().__init__(name, parameters)
+        self.logCode = str(parameters[0][1])
+        self.logStamp = str(parameters[1][1])
+        self.logValue = str(parameters[2][1])
+        self.logDescription = str(parameters[3][1])
+        self.logType = LogType(int(parameters[4][1]))
+
+class DutyCycleResponse(MethodResponse):
+    def __init__(self, name, parameters):
+        super().__init__(name, parameters)
+        self.mode = DutyMode(int(parameters[0][1]))
+        self.traffic = int(parameters[1][1])
+
+class SensorEventResponse(MethodResponse):
+    def __init__(self, name, parameters):
+        super().__init__(name, parameters)
+        self.id = int(parameters[0][1])
+        self.windDigital = windDigital(int(parameters[1][1]))
+        self.rainDigital = rainDigital(int(parameters[2][1]))
+        self.tempDigital = tempDigital(int(parameters[3][1]))
+        self.lightDigital = lightDigital(int(parameters[4][1]))
+        self.sensorState = SensorState(int(parameters[5][1]))
+        self.tempAnalog = int(parameters[6][1])
+        self.windAnalog = int(parameters[7][1])
+        self.sun1Analog = int(parameters[8][1])
+        self.dayLightAnalog = int(parameters[9][1])
+        self.sun2Analog = int(parameters[10][1])
+        self.sun3Analog = int(parameters[11][1])
+
+class SenderEventResponse(MethodResponse):
+    def __init__(self, name, parameters):
+        super().__init__(name, parameters)
+        self.senderName = str(parameters[0][1])
+        self.id = int(parameters[1][1])
+        self.event = senderEvents(int(parameters[2][1]))
 
 class ErrorResponse:
 
@@ -237,6 +325,19 @@ def create_response(obj):
         b64_params = [(ParameterType.BASE64, v.cdata) for v in list(array.base64)]
     paramslist = [str_params, int_params, b64_params]
     flat_params_list = list(chain.from_iterable(paramslist))
+    if methodName == "selve.GW.command.result":
+        return CommeoCommandResult(methodName, flat_params_list)
+    if methodName == "selve.GW.event.device":
+        return CommeoDeviceEventResponse(name, flat_params_list)
+    if methodName == "selve.GW.event.sensor":
+        return SensorEventResponse(name, flat_params_list)
+    if methodName == "selve.GW.event.sender":
+        return SenderEventResponse(name, flat_params_list)
+    if methodName == "selve.GW.event.log":
+        return LogEventResponse(name, flat_params_list)
+    if methodName == "selve.GW.event.dutyCycle":
+        return DutyCycleResponse(name, flat_params_list)
+
     return MethodResponse(methodName, flat_params_list)
 
 

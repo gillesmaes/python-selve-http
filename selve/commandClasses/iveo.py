@@ -1,6 +1,10 @@
 from enum import Enum
+from os import wait
+from time import sleep, time
+from selve import commands
+from selve.device import Device
 
-from selve.protocol import MethodCall
+from selve.protocol import CommandTypeIveo, CommunicationType, DeviceClass, ErrorResponse, MethodCall, RepeaterState
 from selve.protocol import ParameterType
 from selve.protocol import DeviceType
 from selve.protocol import CommandType
@@ -16,6 +20,18 @@ _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
 
     
+class IveoCommandSetRepeater(Command):
+    def __init__(self, repeaterState):
+        super().__init__(IveoCommand.SETREPEATER, [(ParameterType.INT, repeaterState)])
+
+class IveoCommandGetRepeater(Command):
+    def __init__(self):
+        super().__init__(IveoCommand.GETREPEATER)
+
+    def process_response(self, methodResponse):
+        super().process_response(methodResponse)
+        self.repeaterState = RepeaterState(int(methodResponse.parameters[0][1]))
+
 class IveoCommandFactory(CommandSingle):
 
     def __init__(self, iveoID):
@@ -26,6 +42,7 @@ class IveoCommandTeach(CommandSingle):
         super().__init__(IveoCommand.TEACH, iveoID)
 
     def process_response(self, methodResponse):
+        super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1])   
 
 class IveoCommandLearn(CommandSingle):
@@ -33,6 +50,7 @@ class IveoCommandLearn(CommandSingle):
         super().__init__(IveoCommand.LEARN, iveoID)
     
     def process_response(self, methodResponse):
+        super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1]) 
          
 class IveoCommandManual(CommandMask):
@@ -40,6 +58,7 @@ class IveoCommandManual(CommandMask):
         super().__init__(IveoCommand.MANUAL, mask, command)
     
     def process_response(self, methodResponse):
+        super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1]) 
 
 class IveoCommandAutomatic(CommandMask):
@@ -47,6 +66,7 @@ class IveoCommandAutomatic(CommandMask):
         super().__init__(IveoCommand.AUTOMATIC, mask, command)
     
     def process_response(self, methodResponse):
+        super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1])
 
 class IveoCommandResult(MethodCall):
@@ -58,6 +78,7 @@ class IveoCommandSetLabel(Command):
         super().__init__(IveoCommand.SETLABEL, [(ParameterType.INT, iveoId), (ParameterType.STRING, label)])
 
     def process_response(self, methodResponse):
+        super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1])
 
 class IveoCommandSetConfig(Command):
@@ -65,6 +86,7 @@ class IveoCommandSetConfig(Command):
         super().__init__(IveoCommand.SETCONFIG, [(ParameterType.INT, iveoId), (ParameterType.INT, activity), (ParameterType.INT, device_type)])
     
     def process_response(self, methodResponse):
+        super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1])
 
 class IveoCommandGetConfig(CommandSingle):
@@ -72,6 +94,7 @@ class IveoCommandGetConfig(CommandSingle):
         super().__init__(IveoCommand.GETCONFIG, iveoId)
     
     def process_response(self, methodResponse):
+        super().process_response(methodResponse)
         self.name = methodResponse.parameters[0][1]
         self.activity = methodResponse.parameters[2][1]
         self.deviceType = DeviceType(int(methodResponse.parameters[3][1]))
@@ -81,42 +104,19 @@ class IveoCommandGetIds(Command):
         super().__init__(IveoCommand.GETIDS)
     
     def process_response(self, methodResponse):
+        super().process_response(methodResponse)
         self.ids = [ b for b in true_in_list(b64bytes_to_bitlist(methodResponse.parameters[0][1]))]
         _LOGGER.debug(self.ids)
 
-class IveoDevice():
+class IveoDevice(Device):
 
     def __init__(self, gateway, iveoID, discover = False):
-        self.iveoID = iveoID
-        self.gateway = gateway
-        self.mask = singlemask(iveoID)
-        self.device_type = DeviceType.UNKNOWN
-        self.name = "Not defined"
+        super().__init__(gateway, iveoID, discover)
+        self.communicationType = CommunicationType.IVEO
+        self.deviceClass = DeviceClass.IVEO
         if discover:
             self.discover_properties()
     
-    def stop(self, automatic = False):
-        self.executeCommand(CommandType.STOP, automatic)
-
-    def moveDown(self, automatic = False):
-        self.executeCommand(CommandType.DEPARTURE, automatic)
-    
-    def moveUp(self, automatic = False):
-        self.executeCommand(CommandType.DRIVEAWAY, automatic)
-    
-    def moveIntermediatePosition1(self, automatic = False):
-        self.executeCommand(CommandType.POSITION_1, automatic)
-
-    def moveIntermediatePosition2(self, automatic = False):
-        self.executeCommand(CommandType.POSITION_2, automatic)
-    
-    def learnChannel(self, channel):
-        command = IveoCommandLearn(self.iveoID)
-        command.execute(self.gateway)
-        if command.executed:
-            _LOGGER.info("Device with id " + str(self.iveoID) + " learning")
-            self.gateway.teach_channel(channel)
-
     def executeCommand(self, commandType, automatic = False):
         if automatic:
             command = IveoCommandAutomatic(self.mask, commandType)
@@ -126,10 +126,85 @@ class IveoDevice():
         return command
 
     def discover_properties(self):
-        command = IveoComandGetConfig(self.iveoID)
+        try:
+            command = IveoCommandGetConfig(self.ID)
+            command.execute(self.gateway)
+            self.device_type = command.deviceType
+            self.name = command.name
+            self.activity = command.activity
+        except Exception as e1:
+            _LOGGER.exception ("not : " + str(e1))
+
+    def setRepeaterState(self, state):
+        command = IveoCommandSetRepeater(state)
+        command.execute(self.gateway)
+
+    def getRepeaterState(self):
+        command = IveoCommandGetRepeater()
+        command.execute(self.gateway)
+        return command
+
+    def setIveoLabel(self):
+        command = IveoCommandSetLabel(self.ID, self.name)
+        command.execute(self.gateway)
+
+    def setIveoConfig(self):
+        command = IveoCommandSetConfig(self.ID, self.activity, self.device_type)
+        command.execute(self.gateway)
+
+    def getIveoConfig(self):
+        command = IveoCommandGetConfig(self.ID)
         command.execute(self.gateway)
         self.device_type = command.deviceType
         self.name = command.name
+        self.activity = command.activity
+
+    def resetIveoChannel(self):
+        command = IveoCommandFactory(self.ID)
+        command.execute(self.gateway)
+        self.gateway.deleteDevice(self.ID)
+
+    def learnIveoChannel(self):
+        command = IveoCommandLearn(self.ID)
+        command.execute(self.gateway)
+
+    def setToLearnMode(self):
+        self.learnIveoChannel()        
+
+    def teachIveoChannel(self, channel):
+        command = IveoCommandTeach(channel)
+        _LOGGER.info("Trying to teach channel " + str(channel))
+        command.execute(self.gateway)
+        if command.hasError:
+            _LOGGER.info("Teaching failed for channel " + str(channel))
+            return
+        if command.executed:
+            _LOGGER.info("Channel " + str(channel) + "successfully taught" )
+
+    def manualIveoCommand(self, idMask, command):
+        command = IveoCommandManual(idMask, command)
+        command.execute(self.gateway)
+        return command
+
+    def automaticIveoCommand(self, idMask, command):
+        command = IveoCommandAutomatic(idMask, command)
+        command.execute(self.gateway)
+        return command
+
+
+    def stop(self, idMask):
+        self.automaticIveoCommand(idMask, CommandTypeIveo.STOP)
+
+    def moveDown(self, idMask):
+        self.automaticIveoCommand(idMask, CommandTypeIveo.DRIVEDOWN)
     
-    def __str__(self):
-        return "Device of type: " + self.device_type.name + " on channel " + str(self.iveoID) + " with name " + self.name
+    def moveUpIveo(self, idMask):
+        self.automaticIveoCommand(idMask, CommandTypeIveo.DRIVEUP)
+    
+    def moveIntermediatePosition1(self, idMask):
+        self.manualIveoCommand(idMask, CommandTypeIveo.POSITION_1)
+
+    def moveIntermediatePosition2(self, idMask):
+        self.manualIveoCommand(idMask, CommandTypeIveo.POSITION_2)
+    
+    

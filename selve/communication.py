@@ -1,7 +1,4 @@
-
-from typing import Union
-from selve.protocol import *
-from selve.commands import *
+from selve.protocol import DayMode, DeviceType, DutyMode, LogType, MethodCall, MovementState, ParameterType, SensorState, lightDigital, process_response, rainDigital, senderEvents, tempDigital, windDigital
 from selve.utils import *
 import logging
 
