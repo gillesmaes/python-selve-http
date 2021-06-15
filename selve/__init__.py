@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import asyncio
 from selve.commandClasses.command import CommeoCommandDevice, CommeoCommandGroup, CommeoCommandGroupMan
 from selve.commandClasses.common import CommeoParamGetEvent, CommeoParamSetEvent, CommeoServiceFactoryReset, CommeoServiceGetState, CommeoServiceGetVersion, CommeoServicePing, CommeoServiceReset
 from selve.commandClasses.sensor import CommeoSensorGetIDs, SensorDevice
@@ -46,13 +47,16 @@ class Gateway():
             exit()
 
         if discover:
-            self.discover()
+            _LOGGER.info("Discovering devices")
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self.discover())
 
-        self.readThread = threading.Thread(target=self.readFromPort)
-        self.readThread.start()
+        #self.readThread = threading.Thread(target=self.readFromPort)
+        #self.readThread.start()
 
-        self.writeThread = threading.Thread(target=self.writePort)
-        self.writeThread.start()
+        #self.writeThread = threading.Thread(target=self.writePort)
+        #self.writeThread.start()
     
     def configserial(self):
         """
@@ -121,9 +125,7 @@ class Gateway():
                         _LOGGER.exception ("error communicating...: " + str(e1))
         
 
-
-
-    def executeCommand(self, command):
+    async def executeCommand(self, command):
         """[summary]
         Execute the given command using the serial port.
         It opens a communication to the serial port each time a
@@ -159,7 +161,8 @@ class Gateway():
                     if (response.decode() == ''):
                         break
                     
-                _LOGGER.debug('read data: ' + response_str)
+                _LOGGER.debug('read data: ' + response_str)            
+                self.ser.close()
                 return process_response(response_str)
                         
             except Exception as e:
@@ -168,10 +171,13 @@ class Gateway():
             self.ser.close()
             return None
 
-    def discover(self):
+    async def discover(self):
         """[summary]
             Discover all devices registered on the usb-commeo        
         """
+        await self.gatewayReady()
+            
+
         commandIveo = IveoCommandGetIds()
         commandCommeoActors = CommeoDeviceGetIDs()
         commandCommeoGroups = CommeoGroupGetIDs()
@@ -182,37 +188,37 @@ class Gateway():
         retry_n = 0
         retry_m = 0
         while not hasattr(commandIveo, "ids") and retry_n <=num_retries:
-            commandIveo.execute(self)
+            await commandIveo.execute(self)
             retry_n += 1
             time.sleep(1)
         retry_n = 0
         retry_m = 0
         while not hasattr(commandCommeoActors, "ids") and retry_m <=num_retries:
-            commandCommeoActors.execute(self)
+            await commandCommeoActors.execute(self)
             retry_m += 1
             time.sleep(1)
         retry_n = 0
         retry_m = 0
         while not hasattr(commandCommeoGroups, "ids") and retry_m <=num_retries:
-            commandCommeoGroups.execute(self)
+            await commandCommeoGroups.execute(self)
             retry_m += 1
             time.sleep(1)
         retry_n = 0
         retry_m = 0
         while not hasattr(commandCommeoSenders, "ids") and retry_m <=num_retries:
-            commandCommeoSenders.execute(self)
+            await commandCommeoSenders.execute(self)
             retry_m += 1
             time.sleep(1)
         retry_n = 0
         retry_m = 0
         while not hasattr(commandCommeoSenSims, "ids") and retry_m <=num_retries:
-            commandCommeoSenSims.execute(self)
+            await commandCommeoSenSims.execute(self)
             retry_m += 1
             time.sleep(1)
         retry_n = 0
         retry_m = 0
         while not hasattr(commandCommeoSensors, "ids") and retry_m <=num_retries:
-            commandCommeoSensors.execute(self)
+            await commandCommeoSensors.execute(self)
             retry_m += 1
             time.sleep(1)
 
@@ -223,50 +229,58 @@ class Gateway():
             iveoDevices = {}
         else:
             _LOGGER.debug(f'discover ids: {commandIveo.ids}')
-            iveoDevices = dict([(id, IveoDevice(self, id, True) )for id in commandIveo.ids])
+            iveoDevices = dict([(id, IveoDevice(self, id) )for id in commandIveo.ids])
         
         if not hasattr(commandCommeoActors, "ids"):
             _LOGGER.info("Associated Commeo Devices not found") 
             commeoActors = {}
         else:
             _LOGGER.debug(f'discover ids: {commandCommeoActors.ids}')
-            commeoActors = dict([(id, ActorDevice(self, id, True) )for id in commandCommeoActors.ids])
+            commeoActors = dict([(id, ActorDevice(self, id) )for id in commandCommeoActors.ids])
         
         if not hasattr(commandCommeoGroups, "ids"):
             _LOGGER.info("Associated Commeo Groups not found") 
             commeoGroups = {}
         else:
             _LOGGER.debug(f'discover ids: {commandCommeoGroups.ids}')
-            commeoGroups = dict([(id, GroupDevice(self, id, True) )for id in commandCommeoGroups.ids])
+            commeoGroups = dict([(id, GroupDevice(self, id) )for id in commandCommeoGroups.ids])
         
         if not hasattr(commandCommeoSenders, "ids"):
             _LOGGER.info("Associated Commeo Devices not found") 
             commeoSenders = {}
         else:
             _LOGGER.debug(f'discover ids: {commandCommeoSenders.ids}')
-            commeoSenders = dict([(id, SenderDevice(self, id, True) )for id in commandCommeoSenders.ids])
+            commeoSenders = dict([(id, SenderDevice(self, id) )for id in commandCommeoSenders.ids])
         
         if not hasattr(commandCommeoSenSims, "ids"):
             _LOGGER.info("Associated Commeo Devices not found") 
             commeoSenSims = {}
         else:
             _LOGGER.debug(f'discover ids: {commandCommeoSenSims.ids}')
-            commeoSenSims = dict([(id, SenSimDevice(self, id ,True) )for id in commandCommeoSenSims.ids])
+            commeoSenSims = dict([(id, SenSimDevice(self, id) )for id in commandCommeoSenSims.ids])
         
         if not hasattr(commandCommeoSensors, "ids"):
             _LOGGER.info("Associated Commeo Devices not found") 
             commeoSensors = {}
         else:
             _LOGGER.debug(f'discover ids: {commandCommeoSensors.ids}')
-            commeoSensors = dict([(id, SensorDevice(self, id , True) )for id in commandCommeoSensors.ids])
+            commeoSensors = dict([(id, SensorDevice(self, id) )for id in commandCommeoSensors.ids])
         
 
-        self.devices = iveoDevices | commeoActors | commeoGroups | commeoSenders | commeoSenSims | commeoSensors
+        self.devices.update(iveoDevices) 
+        self.devices.update(commeoActors) 
+        self.devices.update(commeoGroups) 
+        self.devices.update(commeoSenders) 
+        self.devices.update(commeoSenSims) 
+        self.devices.update(commeoSensors)
+        
+        for id, device in self.devices.items():
+            await device.discover_properties()
         
         self.list_devices() 
        
     def addDevice(self, id, device):
-        self.devices = self.devices | {id:device}
+        self.devices = self.devices.update({id:device})
 
     def deleteDevice(self, id):
         if self.is_id_registered(id):
@@ -300,21 +314,30 @@ class Gateway():
             _LOGGER.info(str(device))
            
     ## Common ##
-    def pingGateway(self):
+    async def pingGateway(self):
+        self.gatewayReady()
         command = CommeoServicePing()
-        command.execute(self)
+        await command.execute(self)
         print("Ping")
 
     # GATEWAY STATE....
 
-    def gatewayState(self):
+    async def gatewayState(self):
         command = CommeoServiceGetState()
-        command.execute(self)
-        return command.status.name
+        await command.execute(self)
+        if hasattr(command, "status"):
+            return command.status.name
 
-    def getVersionG(self):
+    async def gatewayReady(self):
+        if await self.gatewayState() == "READY":
+            return
+        else:
+            raise GatewayError
+
+    async def getVersionG(self):
+        self.gatewayReady()
         command = CommeoServiceGetVersion()
-        command.execute(self)
+        await command.execute(self)
         return command
 
     def getGatewayFirmwareVersion(self):
@@ -326,17 +349,18 @@ class Gateway():
     def getGatewaySpec(self):
         return self.getVersionG.spec
 
-    def resetGateway(self):
+    async def resetGateway(self):
+        self.gatewayReady()
         command = CommeoServiceReset()
-        command.execute(self)
+        await command.execute(self)
         while not command.executed:
             time.sleep(1)
         command = CommeoServiceGetState()
-        command.execute(self)
+        await command.execute(self)
         retries = 0
         while command.status != ServiceState.READY:
             retries = retries+1
-            command.execute(self)
+            await command.execute(self)
             if retries == 5:
                 break
             time.sleep(3)
@@ -345,61 +369,80 @@ class Gateway():
         else:
             _LOGGER.info("Gateway reset")
 
-    def factoryResetGateway(self):
+    async def factoryResetGateway(self):
+        self.gatewayReady()
         command = CommeoServiceFactoryReset()
-        command.execute(self)
+        await command.execute(self)
         if command.executed:
             _LOGGER.info("Factory reset successful")
         else:
             _LOGGER.info("Factory reset failed")
 
-    def setEvents(self, eventDevice, eventSensor, eventSender, eventLogging, eventDuty):
+    async def setEvents(self, eventDevice, eventSensor, eventSender, eventLogging, eventDuty):
+        self.gatewayReady()
         command = CommeoParamSetEvent(eventDevice, eventSensor, eventSender, eventLogging, eventDuty)
         command.execute(self)
 
-    def getEvents(self):
+    async def getEvents(self):
+        self.gatewayReady()
         command = CommeoParamGetEvent()
-        command.execute(self)
+        await command.execute(self)
         _LOGGER.debug("Events: " + str(command.eventDevice) + " " + str(command.eventSensor) + " " + str(command.eventSender) + " " + str(command.eventLogging) + " " + str(command.eventDuty))
 
 ## Actor
 
-    def sendCommandToActor(self, id, command, type=DeviceCommandTypes.MANUAL, parameter=0):
+    async def sendCommandToActor(self, id, command, type=DeviceCommandTypes.MANUAL, parameter=0):
+        self.gatewayReady()
         command = CommeoCommandDevice(id, command, type, parameter)
-        command.execute(self)
+        await command.execute(self)
         return command.executed
 
-    def scanActorDevices(self):
+    async def scanActorDevices(self):
+        self.gatewayReady()
         commandStart = CommeoDeviceScanStart()
         commandStop = CommeoDeviceScanStop()
         commandResult = CommeoDeviceScanResult()
 
-        commandStart.execute(self)
-        commandResult.execute(self)
-        while commandResult.scanState != ScanState.END_SUCCESS and commandResult.scanState != ScanState.END_FAILED:
-            commandResult.execute(self)
-            #wait(1)
+        await commandStart.execute(self)
+        await commandResult.execute(self)
+        while commandResult.scanState == ScanState.RUN or commandResult.scanState == ScanState.VERIFY:
+            await commandResult.execute(self)
+            time.sleep(1)
         if commandResult.scanState == ScanState.END_SUCCESS:
             if commandResult.noNewDevices > 0:
                 return commandResult.foundIds
 
-        return []
+        return {}
 
-    def saveActorDevices(self, ids):
+    async def saveActorDevices(self, ids):
+        self.gatewayReady()
         if len(ids) > 0:
             for id in ids:
                 commandSave = CommeoDeviceSave(id)
-                commandSave.execute(self)
-                self.devices = self.devices | dict(([id, ActorDevice(self, id , True)]))
+                await commandSave.execute(self)
+                dev = ActorDevice(self, id , True)
+                self.addDevice(id, dev)
+                dev.saveDevice()
+
+    async def deleteActorDevice(self, id):
+        if self.is_id_registered(id):
+            dev:ActorDevice = self.devices[id]
+            dev.deleteDevice()
 
 ## Group
 
-    def sendCommandToGroup(self, id, command, type=DeviceCommandTypes.MANUAL, parameter=0):
+    async def sendCommandToGroup(self, id, command, type=DeviceCommandTypes.MANUAL, parameter=0):
+        self.gatewayReady()
         command = CommeoCommandGroup(id, command, type, parameter)
-        command.execute(self)
+        await command.execute(self)
         return command.executed
 
-    def sendCommandToGroupMan(self, idMask, command, type=DeviceCommandTypes.MANUAL, parameter=0):
+    async def sendCommandToGroupMan(self, idMask, command, type=DeviceCommandTypes.MANUAL, parameter=0):
+        self.gatewayReady()
         command = CommeoCommandGroupMan(command, type, idMask, parameter)
-        command.execute(self)
+        await command.execute(self)
         return command.ids
+
+
+class GatewayError(Exception):
+    pass

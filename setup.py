@@ -15,7 +15,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     
     name='python-selve-new',  # Required    
-    version='1.0.1.3',  # Required  
+    version='1.0.13',  # Required  
     description='Python library for interfacing with selve devices using the USB-RF controller; forked from GPULIDO',  # Required   
     long_description=long_description,  # Optional    
     url='https://github.com/Kannix2005/python-selve',  # Optional
@@ -45,7 +45,7 @@ setup(
    
     keywords='selve blind awning shutter usb rf',  # Optional
 
-    packages=["selve"],  # Required
+    packages=find_packages(),  # Required
 
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is

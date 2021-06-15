@@ -1,8 +1,9 @@
+from selve.commandClasses.command import CommeoCommandGroup
 from selve.device import Device
-from selve.protocol import CommunicationType, DeviceClass, DeviceCommandTypes, ParameterType
-from build.lib.selve.utils import b64bytes_to_bitlist, true_in_list
+from selve.protocol import CommandType, CommunicationType, DeviceClass, DeviceCommandTypes, ParameterType
+from selve.utils import b64bytes_to_bitlist, true_in_list
 import logging
-from selve.commands import CommeoGroupCommand
+from selve.commands import CommeoDeviceCommand, CommeoGroupCommand
 from selve.communication import Command, CommandSingle
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,12 +40,10 @@ class CommeoGroupDelete(CommandSingle):
         self.executed = bool(methodResponse.parameters[0][1])
 
 class GroupDevice(Device):
-    def __init__(self, gateway, id, discover = False):
-        super().__init__(gateway, id, discover)
+    def __init__(self, gateway, id):
+        super().__init__(gateway, id)
         self.communicationType = CommunicationType.COMMEO
         self.deviceClass = DeviceClass.GROUP
-        if discover:
-            self.discover_properties()
 
     def discover_properties(self):
         try:
@@ -71,3 +70,82 @@ class GroupDevice(Device):
         command = CommeoGroupDelete(id)
         command.execute(self.gateway)
 
+    def executeCommand(self, command, commandType = DeviceCommandTypes.MANUAL, parameter=0):
+        command = CommeoCommandGroup(self.ID, command, commandType, parameter)
+        command.execute(self.gateway)
+        return command
+    
+    def stop(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        self.executeCommand(CommandType.STOP, type)
+
+    def moveDown(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        self.executeCommand(CommandType.DRIVEDOWN, type)
+    
+    def moveUp(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        self.executeCommand(CommandType.DRIVEUP, type)
+    
+    def moveIntermediatePosition1(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        self.executeCommand(CommandType.DRIVEPOS1, type)
+
+    def moveIntermediatePosition2(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        self.executeCommand(CommandType.DRIVEPOS2, type)
+    
+    def driveToPos(self, position, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        self.executeCommand(CommandType.DRIVEPOS, type, position)
+
+    def stepUp(self, degrees, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        self.executeCommand(CommandType.STEPUP, type, degrees)
+
+    def stepDown(self, degrees, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        self.executeCommand(CommandType.STEPDOWN, type, degrees)
+
+    def setAutomatic(self, autoOn, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        if autoOn:
+            self.executeCommand(CommandType.AUTOON, type)
+        else:
+            self.executeCommand(CommandType.AUTOOFF, type)

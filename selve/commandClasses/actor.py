@@ -1,7 +1,10 @@
+import asyncio
 from enum import Enum
 from os import wait
+from selve import commands
+from selve.commandClasses.command import CommeoCommandDevice
 
-from selve.protocol import CommunicationType, DayMode, DeviceClass, DeviceCommandTypes, DeviceState, MethodCall, MovementState, ScanState, ServiceState
+from selve.protocol import CommandType, CommunicationType, DayMode, DeviceClass, DeviceCommandTypes, DeviceState, MethodCall, MovementState, ScanState, ServiceState
 from selve.protocol import ParameterType
 from selve.protocol import DeviceType
 from selve.commands import Commands, CommeoCommandCommand, CommeoDeviceCommand, CommeoEventCommand, CommeoGroupCommand, CommeoParamCommand, CommeoSenSimCommand, CommeoSenderCommand, CommeoSensorCommand, CommeoServiceCommand
@@ -129,17 +132,15 @@ class CommeoDeviceWriteManual(Command):
 
 
 class ActorDevice(Device):
-    def __init__(self, gateway, id, discover = False):
-        super().__init__(gateway, id, discover)
+    def __init__(self, gateway, id):
+        super().__init__(gateway, id)
         self.communicationType = CommunicationType.COMMEO
         self.deviceClass = DeviceClass.ACTOR
-        if discover:
-            self.discover_properties()
 
-    def discover_properties(self):
+    async def discover_properties(self):
         try:
             command = CommeoDeviceGetInfo(self.ID)
-            command.execute(self.gateway)
+            await command.execute(self.gateway)
             self.device_type = command.deviceType
             self.name = command.name
             self.rfAddress = command.rfAddress
@@ -148,9 +149,9 @@ class ActorDevice(Device):
             _LOGGER.exception ("not : " + str(e1))
 
     
-    def getDeviceValues(self):
+    async def getDeviceValues(self):
         command = CommeoDeviceGetValues(self.ID)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
         
         self.name = command.name
         self.movementState = command.movementState
@@ -167,25 +168,121 @@ class ActorDevice(Device):
         self.rainAlarm = command.rainAlarm
         self.freezingAlarm = command.freezingAlarm
         self.dayMode = command.dayMode
+        return command
 
-    def setDeviceFunction(self, func):
+    async def setDeviceFunction(self, func):
         command = CommeoDeviceSetFunction(self.ID, func)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
 
-    def setDeviceLabel(self):
+    async def setDeviceLabel(self):
         command = CommeoDeviceSetLabel(self.ID, self.name)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
 
-    def setDeviceType(self):
+    async def setDeviceType(self):
         command = CommeoDeviceSetType(self.ID, self.device_type)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
 
-    def deleteDevice(self):
+    async def deleteDevice(self):
         command = CommeoDeviceDelete(self.ID)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
         self.gateway.deleteDevice(self.ID)
 
-    def setDeviceManual(self):
+    async def setDeviceManual(self):
         command = CommeoDeviceWriteManual(self.ID, self.rfAddress, self.name, self.device_type)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
+
+    async def executeCommand(self, command, commandType = DeviceCommandTypes.MANUAL, parameter = 0):
+        command = CommeoCommandDevice(self.ID, command, commandType, parameter)
+        await command.execute(self.gateway)
+        return command
+
+    async def stop(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        await self.executeCommand(CommandType.STOP, type)
+
+    async def moveDown(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        await self.executeCommand(CommandType.DRIVEDOWN, type)
     
+    async def moveUp(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        await self.executeCommand(CommandType.DRIVEUP, type)
+    
+    async def moveIntermediatePosition1(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        await self.executeCommand(CommandType.DRIVEPOS1, type)
+
+    async def moveIntermediatePosition2(self, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        await self.executeCommand(CommandType.DRIVEPOS2, type)
+    
+    async def driveToPos(self, position, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        await self.executeCommand(CommandType.DRIVEPOS, type, position)
+
+    async def stepUp(self, degrees, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        await self.executeCommand(CommandType.STEPUP, type, degrees)
+
+    async def stepDown(self, degrees, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        await self.executeCommand(CommandType.STEPDOWN, type, degrees)
+
+    async def setAutomatic(self, autoOn, forced=False):
+        if forced:
+            type=DeviceCommandTypes.FORCED
+        else:
+            type=DeviceCommandTypes.MANUAL
+
+        if autoOn:
+            await self.executeCommand(CommandType.AUTOON, type)
+        else:
+            await self.executeCommand(CommandType.AUTOOFF, type)
+
+    async def saveDevice(self):
+        command = CommeoDeviceSave(self.ID)
+        await command.execute(self.gateway)
+        if command.executed:
+            _LOGGER.info("Device saved")
+        else:
+            _LOGGER.info("Device saving failed")
+
+    async def deleteDevice(self):
+        command = CommeoDeviceDelete(self.ID)
+        await command.execute(self.gateway)
+        if command.executed:
+            _LOGGER.info("Device deleted")
+        else:
+            _LOGGER.info("Device deletion failed")

@@ -1,12 +1,9 @@
-from enum import Enum
-from os import name, wait
+from os import wait
 from selve.device import Device
 from selve.communication import Command, CommandSingle
-from selve.protocol import CommunicationType, DeviceClass, MethodCall, ScanState, SensorState, ServiceState, TeachState, lightDigital, rainDigital, tempDigital, windDigital
+from selve.protocol import CommunicationType, DeviceClass, ScanState, SensorState, TeachState, lightDigital, rainDigital, tempDigital, windDigital
 from selve.protocol import ParameterType
-from selve.protocol import DeviceType
-from selve.protocol import CommandType
-from selve.commands import Commands, CommeoCommandCommand, CommeoDeviceCommand, CommeoEventCommand, CommeoGroupCommand, CommeoParamCommand, CommeoSenSimCommand, CommeoSenderCommand, CommeoSensorCommand, CommeoServiceCommand
+from selve.commands import CommeoSensorCommand
 from selve.utils import singlemask
 from selve.utils import true_in_list
 from selve.utils import b64bytes_to_bitlist
@@ -99,12 +96,10 @@ class CommeoSensorWriteManual(Command):
         self.executed = bool(methodResponse.parameters[0][1])
 
 class SensorDevice(Device):
-    def __init__(self, gateway, id, discover = False):
-        super().__init__(gateway, id, discover)
+    def __init__(self, gateway, id):
+        super().__init__(gateway, id)
         self.communicationType = CommunicationType.COMMEO
         self.deviceClass = DeviceClass.SENSOR
-        if discover:
-            self.discover_properties()
 
     def discover_properties(self):
         try:

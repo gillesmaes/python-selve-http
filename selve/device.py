@@ -1,3 +1,4 @@
+import asyncio
 from selve.communication import *
 from selve.protocol import *
 import logging
@@ -5,7 +6,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class Device():
 
-    def __init__(self, gateway, ID, discover = False, deviceType:DeviceType = DeviceType.UNKNOWN):
+    def __init__(self, gateway, ID, deviceType:DeviceType = DeviceType.UNKNOWN):
         self.ID = ID
         self.gateway = gateway
         self.mask = singlemask(ID)
@@ -13,10 +14,8 @@ class Device():
         self.name = "Not defined"
         self.deviceClass = DeviceClass.UNKOWN
         self.communicationType = CommunicationType.UNKNOWN
-        if discover:
-            self.discover_properties()
     
-    def discover_properties(self):
+    async def discover_properties(self):
         pass
 
     def __str__(self):

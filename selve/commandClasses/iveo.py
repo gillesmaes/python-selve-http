@@ -1,16 +1,11 @@
-from enum import Enum
-from os import wait
-from time import sleep, time
-from selve import commands
+import asyncio
 from selve.device import Device
 
-from selve.protocol import CommandTypeIveo, CommunicationType, DeviceClass, ErrorResponse, MethodCall, RepeaterState
+from selve.protocol import CommandTypeIveo, CommunicationType, DeviceClass, MethodCall, RepeaterState
 from selve.protocol import ParameterType
 from selve.protocol import DeviceType
-from selve.protocol import CommandType
-from selve.commands import Commands, IveoCommand
+from selve.commands import IveoCommand
 from selve.communication import Command, CommandMask, CommandSingle
-from selve.utils import singlemask
 from selve.utils import true_in_list
 from selve.utils import b64bytes_to_bitlist
 import logging
@@ -110,101 +105,103 @@ class IveoCommandGetIds(Command):
 
 class IveoDevice(Device):
 
-    def __init__(self, gateway, iveoID, discover = False):
-        super().__init__(gateway, iveoID, discover)
+    def __init__(self, gateway, iveoID):
+        super().__init__(gateway, iveoID)
         self.communicationType = CommunicationType.IVEO
         self.deviceClass = DeviceClass.IVEO
-        if discover:
-            self.discover_properties()
     
-    def executeCommand(self, commandType, automatic = False):
+    async def executeCommand(self, commandType, automatic = False):
         if automatic:
             command = IveoCommandAutomatic(self.mask, commandType)
         else:
             command = IveoCommandManual(self.mask, commandType)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
         return command
 
-    def discover_properties(self):
+    async def discover_properties(self):
         try:
             command = IveoCommandGetConfig(self.ID)
-            command.execute(self.gateway)
+            await command.execute(self.gateway)
             self.device_type = command.deviceType
             self.name = command.name
             self.activity = command.activity
         except Exception as e1:
             _LOGGER.exception ("not : " + str(e1))
 
-    def setRepeaterState(self, state):
+    async def setRepeaterState(self, state):
         command = IveoCommandSetRepeater(state)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
 
-    def getRepeaterState(self):
+    async def getRepeaterState(self):
         command = IveoCommandGetRepeater()
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
         return command
 
-    def setIveoLabel(self):
+    async def setIveoLabel(self):
         command = IveoCommandSetLabel(self.ID, self.name)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
 
-    def setIveoConfig(self):
+    async def setIveoConfig(self):
         command = IveoCommandSetConfig(self.ID, self.activity, self.device_type)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
 
-    def getIveoConfig(self):
+    async def getIveoConfig(self):
         command = IveoCommandGetConfig(self.ID)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
         self.device_type = command.deviceType
         self.name = command.name
         self.activity = command.activity
 
-    def resetIveoChannel(self):
+    async def resetIveoChannel(self):
         command = IveoCommandFactory(self.ID)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
         self.gateway.deleteDevice(self.ID)
 
-    def learnIveoChannel(self):
+    async def learnIveoChannel(self):
         command = IveoCommandLearn(self.ID)
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
 
-    def setToLearnMode(self):
+    async def setToLearnMode(self):
         self.learnIveoChannel()        
 
-    def teachIveoChannel(self, channel):
+    async def teachIveoChannel(self, channel):
         command = IveoCommandTeach(channel)
         _LOGGER.info("Trying to teach channel " + str(channel))
-        command.execute(self.gateway)
+        await command.execute(self.gateway)
         if command.hasError:
             _LOGGER.info("Teaching failed for channel " + str(channel))
             return
-        if command.executed:
+        if await command.executed:
             _LOGGER.info("Channel " + str(channel) + "successfully taught" )
 
-    def manualIveoCommand(self, idMask, command):
-        command = IveoCommandManual(idMask, command)
-        command.execute(self.gateway)
+    async def manualIveoCommand(self, command):
+        command = IveoCommandManual(self.mask, command)
+        await command.execute(self.gateway)
         return command
 
-    def automaticIveoCommand(self, idMask, command):
-        command = IveoCommandAutomatic(idMask, command)
-        command.execute(self.gateway)
+    async def automaticIveoCommand(self, command):
+        command = IveoCommandAutomatic(self.mask, command)
+        await command.execute(self.gateway)
         return command
 
 
-    def stop(self, idMask):
-        self.automaticIveoCommand(idMask, CommandTypeIveo.STOP)
+    async def stop(self):
+        await self.automaticIveoCommand(CommandTypeIveo.STOP)
 
-    def moveDown(self, idMask):
-        self.automaticIveoCommand(idMask, CommandTypeIveo.DRIVEDOWN)
+    async def moveDown(self):
+        await self.automaticIveoCommand(CommandTypeIveo.DRIVEDOWN)
     
-    def moveUpIveo(self, idMask):
-        self.automaticIveoCommand(idMask, CommandTypeIveo.DRIVEUP)
+    async def moveUp(self):
+        await self.automaticIveoCommand(CommandTypeIveo.DRIVEUP)
     
-    def moveIntermediatePosition1(self, idMask):
-        self.manualIveoCommand(idMask, CommandTypeIveo.POSITION_1)
+    async def moveIntermediatePosition1(self):
+        await self.manualIveoCommand(CommandTypeIveo.POSITION_1)
 
-    def moveIntermediatePosition2(self, idMask):
-        self.manualIveoCommand(idMask, CommandTypeIveo.POSITION_2)
+    async def moveIntermediatePosition2(self):
+        await self.manualIveoCommand(CommandTypeIveo.POSITION_2)
     
-    
+    async def deleteDevice(self):
+        await self.resetIveoChannel()
+
+    async def saveDevice(self):
+        await self.teachIveoChannel(self.ID)

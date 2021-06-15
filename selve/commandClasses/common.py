@@ -1,8 +1,6 @@
-from enum import Enum
 from selve.communication import Command
 from selve.protocol import *
 from selve.commands import *
-import logging
 
 class CommeoServicePing(Command):
     def __init__(self):
@@ -11,6 +9,7 @@ class CommeoServicePing(Command):
 class CommeoServiceGetState(Command):
     def __init__(self):
         super().__init__(CommeoServiceCommand.GETSTATE)
+        self.status = None
     
     def process_response(self, methodResponse):
         super().process_response(methodResponse)

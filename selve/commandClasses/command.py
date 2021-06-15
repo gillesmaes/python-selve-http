@@ -1,4 +1,4 @@
-from build.lib.selve.utils import b64bytes_to_bitlist, true_in_list
+from selve.utils import b64bytes_to_bitlist, true_in_list
 import logging
 from selve.protocol import DeviceCommandTypes, ParameterType
 from selve.commands import CommeoCommandCommand
@@ -28,3 +28,5 @@ class CommeoCommandGroupMan(Command):
         self.executed = bool(methodResponse.parameters[0][1])
         self.ids = [ b for b in true_in_list(b64bytes_to_bitlist(methodResponse.parameters[0][1]))]
         _LOGGER.debug(self.ids)
+
+

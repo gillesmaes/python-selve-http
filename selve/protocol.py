@@ -1,6 +1,5 @@
-from build.lib.selve.protocol import ErrorResponse
 from os import name
-from build.lib.selve.utils import b64bytes_to_bitlist, intToBoolarray, true_in_list, valueToPercentage
+from selve.utils import b64bytes_to_bitlist, intToBoolarray, true_in_list, valueToPercentage
 from enum import Enum, Flag
 from itertools import chain
 from serial.serialutil import STOPBITS_ONE
@@ -215,8 +214,8 @@ class MethodCall:
         xmlstr+= "</methodCall>"
         return xmlstr.encode('utf-8')
     
-    def execute(self, gateway):
-        response = gateway.executeCommand(self)
+    async def execute(self, gateway):
+        response = await gateway.executeCommand(self)
         if response != None and isinstance(response, MethodResponse):
             self.process_response(response)
     
@@ -345,14 +344,17 @@ def process_response(xmlstr):
     _LOGGER.debug(str(xmlstr))
     #The selve device sometimes answers a badformed header. This is a patch
     xmlstr = str(xmlstr).replace('<?xml version="1.0"? encoding="UTF-8">', '<?xml version="1.0" encoding="UTF-8"?>')
-    
-    res = untangle.parse(xmlstr)
-    if not hasattr(res, 'methodResponse'):
-        _LOGGER.error("Bad response format")
-        return None
-    if hasattr(res.methodResponse, 'fault'):
-        return create_error(res)
-    return create_response(res)
+    try:
+        res = untangle.parse(xmlstr)
+        if not hasattr(res, 'methodResponse'):
+            _LOGGER.error("Bad response format")
+            return None
+        if hasattr(res.methodResponse, 'fault'):
+            return create_error(res)
+        return create_response(res)
+    except Exception as e:
+        _LOGGER.error("Error in XML: " + str(e) + " : " + xmlstr)
+
 
 def main():
 
