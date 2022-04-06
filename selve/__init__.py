@@ -334,17 +334,22 @@ class Gateway():
     async def getVersionG(self):
         self.gatewayReady()
         command = CommeoServiceGetVersion()
-        await command.execute(self)
-        return command
+        return await command.execute(self)
 
     def getGatewayFirmwareVersion(self):
-        return self.getVersionG().version
+        command = self.getVersionG()
+        if hasattr(command, "version"):
+            return command.version
 
     def getGatewaySerial(self):
-        return self.getVersionG().serial
+        command = self.getVersionG()
+        if hasattr(command, "serial"):
+            return command.serial
 
     def getGatewaySpec(self):
-        return self.getVersionG().spec
+        command = self.getVersionG()
+        if hasattr(command, "spec"):
+            return command.spec
 
     async def resetGateway(self):
         self.gatewayReady()
