@@ -2,6 +2,7 @@ import asyncio
 from enum import Enum
 from os import wait
 from selve import commands
+from selve import utils
 from selve.commandClasses.command import CommeoCommandDevice
 
 from selve.protocol import CommandType, CommunicationType, DayMode, DeviceClass, DeviceCommandTypes, DeviceState, MethodCall, MovementState, ScanState, ServiceState
@@ -109,7 +110,7 @@ class CommeoDeviceSetLabel(Command):
 
 class CommeoDeviceSetType(Command):
     def __init__(self, deviceId, type):
-        super().__init__(CommeoDeviceCommand.SETTYPE, [(ParameterType.INT, deviceId), (ParameterType.INT, type)])
+        super().__init__(CommeoDeviceCommand.SETTYPE, [(ParameterType.INT, deviceId), (ParameterType.INT, type.value)])
     def process_response(self, methodResponse):
         super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1])
@@ -124,7 +125,7 @@ class CommeoDeviceDelete(CommandSingle):
     
 class CommeoDeviceWriteManual(Command):
     def __init__(self, deviceId, rfAddress, name, deviceType):
-        super().__init__(CommeoDeviceCommand.WRITEMANUAL, [(ParameterType.STRING, name), (ParameterType.INT, deviceId), (ParameterType.INT, rfAddress), (ParameterType.INT, deviceType)])
+        super().__init__(CommeoDeviceCommand.WRITEMANUAL, [(ParameterType.STRING, name), (ParameterType.INT, deviceId), (ParameterType.INT, rfAddress), (ParameterType.INT, deviceType.value)])
 
     def process_response(self, methodResponse):
         super().process_response(methodResponse)
@@ -242,7 +243,7 @@ class ActorDevice(Device):
         else:
             type=DeviceCommandTypes.MANUAL
 
-        await self.executeCommand(CommandType.DRIVEPOS, type, position)
+        await self.executeCommand(CommandType.DRIVEPOS, type, utils.percentageToValue(position))
 
     async def stepUp(self, degrees, forced=False):
         if forced:

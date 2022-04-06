@@ -8,21 +8,21 @@ _LOGGER = logging.getLogger(__name__)
 
 class CommeoCommandDevice(Command):
     def __init__(self, deviceId, command, commmandType = DeviceCommandTypes.MANUAL, parameter = 0):
-        super().__init__(CommeoCommandCommand.DEVICE, [(ParameterType.INT, deviceId), (ParameterType.INT, command), (ParameterType.INT, commmandType), (ParameterType.INT, parameter)])
+        super().__init__(CommeoCommandCommand.DEVICE, [(ParameterType.INT, deviceId), (ParameterType.INT, command.value), (ParameterType.INT, commmandType.value), (ParameterType.INT, parameter)])
     def process_response(self, methodResponse):
         super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1])
 
 class CommeoCommandGroup(Command):
     def __init__(self, deviceId, command, commmandType = DeviceCommandTypes.MANUAL, parameter = 0):
-        super().__init__(CommeoCommandCommand.GROUP, [(ParameterType.INT, deviceId), (ParameterType.INT, command), (ParameterType.INT, commmandType), (ParameterType.INT, parameter)])
+        super().__init__(CommeoCommandCommand.GROUP, [(ParameterType.INT, deviceId), (ParameterType.INT, command.value), (ParameterType.INT, commmandType.value), (ParameterType.INT, parameter)])
     def process_response(self, methodResponse):
         super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1])
 
 class CommeoCommandGroupMan(Command):
     def __init__(self, command, commandType, deviceIdMask, parameter = 0):
-        super().__init__(CommeoCommandCommand.GROUPMAN, [(ParameterType.INT, command), (ParameterType.INT, commandType), (ParameterType.BASE64, deviceIdMask), (ParameterType.INT, parameter)])
+        super().__init__(CommeoCommandCommand.GROUPMAN, [(ParameterType.INT, command.value), (ParameterType.INT, commandType.value), (ParameterType.BASE64, deviceIdMask), (ParameterType.INT, parameter)])
     def process_response(self, methodResponse):
         super().process_response(methodResponse)
         self.executed = bool(methodResponse.parameters[0][1])

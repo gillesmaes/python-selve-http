@@ -39,12 +39,9 @@ class Gateway():
         self.lock = threading.Lock()
         self.devices: dict = {}
         
-        try:
-            self.configserial()
+        
+        self.configserial()
 
-        except Exception as e:            
-            _LOGGER.error ('error open serial port: ' + str(e))
-            exit()
 
         if discover:
             _LOGGER.info("Discovering devices")

@@ -1,4 +1,5 @@
 import logging
+from selve.protocol import CommandType
 import sys
 from time import sleep
 from selve import utils
@@ -28,14 +29,16 @@ result = loopX.run_until_complete(gat.gatewayState())
 #res = loop.run_until_complete(gat.discover())
 devices = list(gat.devices.values())
 
-t1 = utils.multimask([0,1,2,3,4,5])
+#t1 = utils.multimask([0,1,2,3,4,5])
 
-ttt = utils.b64bytes_to_bitlist(t1)
+#ttt = utils.b64bytes_to_bitlist(t1)
 
 #gat.pingGateway()
 
 #gat.readThread.join()
 #gat.writeThread.join()
+
+result = loopX.run_until_complete(gat.devices[2].driveToPos(0))
 
 #gat.devices[1].executeCommand(CommandTypeIveo.DRIVEDOWN, True)
 #gat.devices[4].executeCommand(CommandTypeIveo.DRIVEUP, True)
