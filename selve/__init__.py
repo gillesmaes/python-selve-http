@@ -338,13 +338,13 @@ class Gateway():
         return command
 
     def getGatewayFirmwareVersion(self):
-        return self.getVersionG.version
+        return self.getVersionG().version
 
     def getGatewaySerial(self):
-        return self.getVersionG.serial
+        return self.getVersionG().serial
 
     def getGatewaySpec(self):
-        return self.getVersionG.spec
+        return self.getVersionG().spec
 
     async def resetGateway(self):
         self.gatewayReady()
