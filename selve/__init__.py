@@ -323,7 +323,7 @@ class Gateway():
         command = CommeoServiceGetState()
         await command.execute(self)
         if hasattr(command, "status"):
-            return command.status.name
+            return command.status
 
     async def gatewayReady(self):
         if await self.gatewayState() == "READY":
