@@ -14,11 +14,10 @@ class CommeoServiceGetState(Command):
     def process_response(self, methodResponse):
         super().process_response(methodResponse)
 
-        if(isinstance(methodResponse.parameters[0][1], int)):
+        try:
             self.status = ServiceState(int(methodResponse.parameters[0][1]))
-        else:
+        except Exception as e:
             self.status = methodResponse.parameters[0][1]
-
 
 class CommeoServiceGetVersion(Command):
     def __init__(self):

@@ -326,7 +326,8 @@ class Gateway():
             return command.status
 
     async def gatewayReady(self):
-        if await self.gatewayState() == "READY":
+        state = await self.gatewayState() 
+        if state == ServiceState.READY:
             return
         else:
             raise GatewayError
