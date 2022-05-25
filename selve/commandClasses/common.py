@@ -19,7 +19,6 @@ class CommeoServiceGetState(Command):
         except Exception as e:
             self.status = methodResponse.parameters[0][1]
 
-
 class CommeoServiceGetVersion(Command):
     def __init__(self):
         super().__init__(CommeoServiceCommand.GETVERSION)
