@@ -11,8 +11,8 @@ from selve import Gateway
 
 
 
-portname = '/dev/ttyUSB0'
-gat = Gateway(portname, True)
+hostname = 'http://127.0.0.1:8000'
+gat = Gateway(hostname, True)
 gat._LOGGER.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

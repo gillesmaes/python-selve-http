@@ -14,12 +14,12 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     
-    name='python-selve-new',  # Required    
+    name='python-selve-http',  # Required    
     version='1.0.26',  # Required  
-    description='Python library for interfacing with selve devices using the USB-RF controller; forked from GPULIDO',  # Required   
+    description='Python library for interfacing with selve devices using the USB-RF controller, hooked up with an HTTP server; forked from GPULIDO & Kannix2005',  # Required   
     long_description=long_description,  # Optional 
     long_description_content_type="text/markdown",   
-    url='https://github.com/Kannix2005/python-selve',  # Optional
+    url='https://github.com/gillesmaes/python-selve-http',  # Optional
     author='Stefan Altheimer',  # Optional
    
     author_email='stefan.altheimer@gmail.com',  # Optional
@@ -55,8 +55,7 @@ setup(
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'pyserial',
-        'pybase64',
+        'requests',
         'untangle'
         ],  # Optional
 

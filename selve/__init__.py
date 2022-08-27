@@ -17,21 +17,23 @@ import serial
 import logging
 import threading
 import queue
+import requests
+
 
 _LOGGER = logging.getLogger(__name__)
 
 class Gateway():   
 
-    def __init__(self, port, discover = True):
+    def __init__(self, host, discover = True):
         """                
         Arguments:
-            port {String} -- Serial port string as it is used in pyserial
+            host {String} -- HTTP host to send commands to
         
         Keyword Arguments:
             discover {bool} -- True if the gateway should try to discover 
                                the devices on init (default: {True})
         """
-        self.port = port
+        self.host = host
         self.connected = False
         self.inputQueue = queue.Queue()
         self.outputQueue = queue.Queue()
@@ -39,88 +41,11 @@ class Gateway():
         self.lock = threading.Lock()
         self.devices: dict = {}
         
-        
-        self.configserial()
-
-
         if discover:
             _LOGGER.info("Discovering devices")
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             result = loop.run_until_complete(self.discover())
-
-        #self.readThread = threading.Thread(target=self.readFromPort)
-        #self.readThread.start()
-
-        #self.writeThread = threading.Thread(target=self.writePort)
-        #self.writeThread.start()
-    
-    def configserial(self):
-        """
-        Configure the serial port
-        """
-        self.ser = serial.Serial(
-            port=self.port,
-            baudrate=115200,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            bytesize=serial.EIGHTBITS)
-        self.ser.timeout = 0
-        self.ser.xonxoff = False
-        self.ser.rtscts = False
-        self.ser.dsrdtr = False
-        self.ser.writeTimeout = 2
-
-    def handleData(self, data):
-        incomingEvent(str(data))
-
-    def readFromPort(self):
-        while True:
-            response_str = "" 
-            with self.lock: 
-                if not self.ser.isOpen():
-                    self.ser.open()
-                if self.ser.inWaiting() > 0:                        
-                    response_str = "" 
-                    while True:
-                        response = self.ser.readline().strip()
-                        response_str += response.decode()
-                        if (response.decode() == ''):
-                            break
-                        
-                    _LOGGER.debug('read data: ' + response_str)
-                    self.ser.close()
-                    return process_response(response_str) 
-                    ## inform callback of events
-
-                
-    def writePort(self):
-        while True:
-            response_str = "" 
-            with self.lock:
-                if not self.outputQueue.empty():     
-                    if not self.ser.isOpen():
-                        self.ser.open()
-                    try:
-                        #self.ser.flushInput()
-                        #self.ser.flushOutput()
-                        
-                        self.ser.write(self.outputQueue.get())
-                        time.sleep(0.5)
-                        response_str = "" 
-                        while True:
-                            response = self.ser.readline().strip()
-                            response_str += response.decode()
-                            if (response.decode() == ''):
-                                break
-                            
-                        self.ser.close()
-                        _LOGGER.info('read data: ' + response_str)
-                        #return process_response(response_str)
-                        # handle response somehow here
-                    except Exception as e1:
-                        _LOGGER.exception ("error communicating...: " + str(e1))
-        
 
     async def executeCommand(self, command):
         """[summary]
@@ -140,32 +65,17 @@ class Gateway():
             ErrorResponse -- if the gateway returns an error
         """
         with self.lock:
+            
             commandstr = command.serializeToXML()
             _LOGGER.info('Gateway writting: ' + str(commandstr))
 
             try:
-                if not self.ser.isOpen():
-                    self.ser.open()
-                self.ser.reset_input_buffer()
-                self.ser.reset_output_buffer()
-                
-                self.ser.write(commandstr)
-                time.sleep(0.5)
-                response_str = "" 
-                while True:
-                    response = self.ser.readline().strip()
-                    response_str += response.decode()
-                    if (response.decode() == ''):
-                        break
-                    
-                _LOGGER.debug('read data: ' + response_str)            
-                self.ser.close()
-                return process_response(response_str)
-                        
+                pload = {'command':commandstr}
+                r = requests.post(self.host, data = pload)
+                return process_response(r.json()['output'])
             except Exception as e:
                 _LOGGER.error ("error communicating: " + str(e))
 
-            self.ser.close()
             return None
 
     async def discover(self):
@@ -307,7 +217,7 @@ class Gateway():
         Print the list of registered devices
         """ 
         for id, device in self.devices.items():
-            #print(str(device))
+            print(str(device))
             _LOGGER.info(str(device))
            
     ## Common ##
