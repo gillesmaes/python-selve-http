@@ -15,7 +15,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     
     name='python-selve-http',  # Required    
-    version='1.0.26',  # Required  
+    version='1.0.0',  # Required  
     description='Python library for interfacing with selve devices using the USB-RF controller, hooked up with an HTTP server; forked from GPULIDO & Kannix2005',  # Required   
     long_description=long_description,  # Optional 
     long_description_content_type="text/markdown",   
