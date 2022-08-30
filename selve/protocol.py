@@ -212,7 +212,7 @@ class MethodCall:
                 xmlstr+="<{0}>{1}</{0}>".format(typ.value, val)
             xmlstr += "</array>"
         xmlstr+= "</methodCall>"
-        return xmlstr.encode('utf-8')
+        return xmlstr
     
     async def execute(self, gateway):
         response = await gateway.executeCommand(self)

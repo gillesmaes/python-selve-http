@@ -17,8 +17,8 @@ import serial
 import logging
 import threading
 import queue
+import aiohttp
 import requests
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,12 +67,19 @@ class Gateway():
         with self.lock:
             
             commandstr = command.serializeToXML()
-            _LOGGER.info('Gateway writting: ' + str(commandstr))
+            _LOGGER.info('Gateway writting: ' + commandstr)
 
             try:
-                pload = {'command':commandstr}
-                r = requests.post(self.host, data = pload)
-                return process_response(r.json()['output'])
+                pload = {'command': commandstr}
+                #r = requests.post(self.host, data = pload)
+                #return process_response(r.json()['output'])
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(self.host, json=pload) as response:
+                        output = await response.json()
+                        return process_response(output['output'])
+
+
             except Exception as e:
                 _LOGGER.error ("error communicating: " + str(e))
 
