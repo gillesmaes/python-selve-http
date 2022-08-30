@@ -77,6 +77,7 @@ class Gateway():
                 async with aiohttp.ClientSession() as session:
                     async with session.post(self.host, json=pload) as response:
                         output = await response.json()
+                        await session.close()
                         return process_response(output['output'])
 
 
